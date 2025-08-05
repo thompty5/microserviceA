@@ -2,38 +2,29 @@
 # This program will receive text to be encoded into a QR code via an HTTP GET request
 # It will encode the text into a QR code PNG image, and will send an HTTP response back with the image
 
-import requests
+from flask import Flask, request, send_file
 import qrcode
 
-# The communication pipe from our main program
-source_url = 'http://localhost:8080/encode'
-# The communication pipe to our main program
-destination_url = 'http://localhost:8080/qrcode'
 # The name of the QR code image we will generate
 filename = 'qrcode.png'
 
-# Get the binary data from the main program
-response = requests.get(source_url)
-if response.status_code == 200:
-    try:
-        # Decode the binary data into text
-        decoded_text = response.content.decode(encoding='utf-8')
+app = Flask(__name__)
 
-        # Print our decoded text just so we know it is correct
-        print(f'Our decoded text is: {decoded_text}')
+@app.route('/encode', methods=['GET'])
+def encode_text():
+    # Decode the binary data into text
+    decoded_text = request.data.decode('utf-8')
 
-        # Create a QR code using our decoded text
-        img = qrcode.make(decoded_text)
-        img.save(filename)
+    # Print our decoded text just so we know it is correct
+    print(f'Our decoded text is: {decoded_text}')
 
-    # Open our created image and post it for our main program
-        with open(filename, 'rb') as file: # Replace 'example.png' with your image file
-            files = {'image_file': file}
-            response = requests.post(destination_url, files=files)
+    # Create a QR code using our decoded text
+    img = qrcode.make(decoded_text)
+    img.save(filename)
 
-    except UnicodeDecodeError:
-        # There was an error while trying to decode the text
-        print('ERROR: The data could not be decoded as UTF-8.')
+    # Send the QR code to the main program
+    return send_file(filename, mimetype='image/png')
 
-else:
-    print(f'The request failed with status code: {response.status_code}')
+if __name__ == '__main__':
+    app.run(host='localhost', port=8080, debug=True)
+    
